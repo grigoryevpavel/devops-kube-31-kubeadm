@@ -2,6 +2,7 @@
 
 - [Considerations for large clusters](https://kubernetes.io/docs/setup/best-practices/cluster-large/),
 - [Architecting Kubernetes clusters — choosing a worker node size](https://learnk8s.io/kubernetes-node-size).
+- [Хорошее пособие по настройке кубов](https://github.com/BigKAA/youtube/blob/master/kubeadm/README.md)
 
 ------
 
@@ -26,7 +27,7 @@
 | Итого:                          |  ```43 ядра,  11 нод```                                  |  ```106 Гб```                             |  
 
 #### Дополнительные условия использованные при расчете:
- 
+
 - У мастер-ноды минимальные требования: 2 ядра и 4 Гб памяти
 - Для отказоустойчивости размещаем поды на 3 рабочих нодах. 
 - Обеспечиваем отказоустойчивость мастер-нодам 
