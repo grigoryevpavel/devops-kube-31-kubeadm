@@ -94,7 +94,7 @@
    ```systemctl enable kubelet```
 6. Проверяем что в файле **/etc/containerd/config.toml**:
    ```enabled_plugins=["cri"]```
-6. Запускаем команду присоединения к мастер ноде на рабочей ноде(обязательно под root из под пользователя):
+7. Запускаем команду присоединения к мастер ноде на рабочей ноде(обязательно под root из под пользователя):
    ```sudo kubeadm join <ip-мастер ноды>:6443 --token kznh8g.7vjbsqmb6zpzgs57 --discovery-token-ca-cert-hash sha256:9b9e6273e639dae468f0e49d225e735b63be45bd5f5bc393024bd56f0597c36c```
 
 ### Установка calico сети
