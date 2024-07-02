@@ -38,24 +38,37 @@
 ### Установка k8s c использованием kubeadm
 
 1. kubelet не работает при включенном свопинге, поэтому выполняем команду: ```sudo swapoff -a```. 
-2. устанавливаем ip_forwarding. В файле ```/etc/sysctl.conf``` раскомментируем строчку ```net.ipv4.ip_forward=1```
-3. Сбрасываем настройки текущего куба, если такой был ранее установлен: ```kubeadm reset```
+2. устанавливаем ip_forwarding и фильтры моста. 
+    1. Запускаем модуль фильтров(проверка наличия модуля: ```modinfo br_netfilter```, проверка что модули bridge и br_netfilter включены: ```lsmod```):
+        - ```modprobe br_netfilter```
+    2. В файле ```/etc/sysctl.conf``` устнавливаем значения:
+        - ```net.ipv4.ip_forward=1```
+        - ```net.bridge.bridge-nf-call-iptables=1```
+    3. Применяем настройки sysctl:
+        - ```sysctl -p /etc/sysctl.conf``` 
+3. Сбрасываем настройки текущего куба, если такой был ранее установлен: 
+   -  ```kubeadm reset```
 4. Удаляем файл .kube\config  если такой есть: ```rm $HOME/.kube/config```
-5. Устанавливаем обязательные пакеты: ```apt-get install apt-transport-https ca-certificates curl software-properties-common -y```
-6. Устанавливаем kubelet, kubeadm, kubectl только на control plane. Для worker node нужны только kubelet и kubectl:
-  ```apt install -y kubeadm kubelet kubectl``` 
-7. Устанавливаем куб командой kubeadm:
-  ```sudo kubeadm init --pod-network-cidr=10.244.10.0/16 --apiserver-advertise-address=<ip-control plane>```
-8. Если команда возвращает сообщение, что запущены ряд процессов, то выполняем поиск из идентификаторов, а затем удаляем эти процессы из памяти:
+5. Устанавливаем обязательные пакеты: 
+   - ```apt-get install apt-transport-https ca-certificates curl software-properties-common -y```
+6. Устанавливаем kubelet, kubeadm, kubectl как на control plane, так и на рабочие ноды. Разница только в том что на мастер ноде запускаем ```kubeadm init```, на рабочей ноде запускаем ```kubeadm join```:
+    - ```apt install -y kubeadm kubelet kubectl``` 
+7. Фиксируем текущие версии, чтобы в дальнейшем не было расхождения между версиями kubectl, kubeadm  и kubelet:
+    - ```apt-mark hold kubeadm kubelet kubectl```
+8. Устанавливаем куб командой kubeadm:
+    - ```sudo kubeadm init --pod-network-cidr=10.244.10.0/16 --apiserver-advertise-address=<ip-control plane>```
+
+    ip-control plane берем как eth0 адрес из результата команды ```ip a```
+9. Если команда возвращает сообщение, что запущены ряд процессов, то выполняем поиск из идентификаторов, а затем удаляем эти процессы из памяти:
    1. получаем список процессов командой:
           ```lsof -i +c0```
    2. удаляем процесс(используем значение в колонке PID процесса из предыдущей команды):
           ```kill <pid>```
-9. копируем admin.conf в *.kube/config*:
+10. копируем admin.conf в *.kube/config*:
         ```sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config```
-10. установливаем права файлу  .kube/config*:
+11. установливаем права файлу  .kube/config*:
         ``` sudo chown $(id -u):$(id -g) $HOME/.kube/config``` 
-11. проверяем доступность куба командой:
+12. проверяем доступность куба командой:
         ```kubectl describe node```
 
 В итоге имеем:
@@ -78,10 +91,12 @@
 ### Актуализируем репозиторий kubernetes 
 
 Т.к. репозиторий  *apt.kubernetes.io* переехал и теперь находится *pkgs.k8s.io*:
-- Скачиваем публичный ключ в папку keyrings:
-  ```mkdir -p /etc/apt/keyrings && cd /etc/apt/keyrings && curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -```
+- ССоздаем папку keyrings:
+  ```mkdir -p /etc/apt/keyrings && cd /etc/apt/keyrings```
+- Скачиваем публичный ключ (для версии 1.28) :
+  ```curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg```
 - Добавляем в файл kubernetes.list строку подключения к репозиторию:
-  ```echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /"> /etc/apt/sources.list/kubernetes.list```
+  ```echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /"> /etc/apt/sources.list.d/kubernetes.list```
 - Проверяем что репозиторий подключен:
   ```apt update```
 
