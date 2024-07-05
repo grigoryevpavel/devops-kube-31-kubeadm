@@ -118,7 +118,7 @@
 Т.к. репозиторий  *apt.kubernetes.io* переехал и теперь находится *pkgs.k8s.io*:
 - ССоздаем папку keyrings:
   ```mkdir -p /etc/apt/keyrings && cd /etc/apt/keyrings```
-- Скачиваем публичный ключ (для версии 1.28) :
+- Скачиваем публичный ключ (для версии 1.28. Необходимо убедится что control plane имеет такую же версию. Если например версия control plane 1.27, то ставим в названии репозиторя 1.27 и устанавливает ноду версии 1.27 той же командой: ```apt install -y kubelet kubeadm kubectl```) :
   ```curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg```
 - Добавляем в файл kubernetes.list строку подключения к репозиторию:
   ```echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /"> /etc/apt/sources.list.d/kubernetes.list```
