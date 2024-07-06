@@ -154,15 +154,15 @@
 - После этого перезапускаем containerd : 
     ```systemctl restart containerd```
 
-2. Установка containerd.io
+2. Установка containerd.io из репозитория docker ( проверил частично)
 - Устанавливаем обязательные пакеты:
   ```sudo apt install -y ca-certificates curl gnupg lsb-release``` 
-- Устанавливаем репозиторий для **containerd.io**:
+- Устанавливаем репозиторий docker:
     - Добавляем ключ репозитория docker:
     ```curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker-archive-keyring.gpg```
     - Прописываем репозиторий docker:
     ```echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list```
-- Устанавливаем **containerd.io**:
+- Устанавливаем **containerd.io**. Устанавливается **runc** автоматически:
    ```sudo apt install -y containerd.io```
 - Заменаяем в файле config.toml значение **SystemdCgroup**:
   ```SystemdCgroup = true``` 
