@@ -41,12 +41,15 @@
   - выполняем команду: ```sudo swapoff -a```
   - удаляем строку начинающуюся на **/swap.img** в файле **/etc/fstab**
 2. устанавливаем ip_forwarding и фильтры моста. 
-    1. Запускаем модуль фильтров(проверка наличия модуля: ```modinfo br_netfilter```, проверка что модули bridge и br_netfilter включены: ```lsmod```):
+    1. Устанавливаем модуль фильтров(проверка наличия модуля: ```modinfo br_netfilter```, проверка что модули bridge и br_netfilter включены: ```lsmod```):
         - ```modprobe br_netfilter```
-    2. В файле ```/etc/sysctl.conf``` устнавливаем значения:
+    2. Устанавливаем модуль оверлея:
+        - ```modprobe overlay```
+    3. В файле ```/etc/sysctl.conf``` устнавливаем значения(устанавливаются после включения модуля ядра - **br_netfilter**):
         - ```net.ipv4.ip_forward=1```
         - ```net.bridge.bridge-nf-call-iptables=1```
-    3. Применяем настройки sysctl:
+        - ```net.bridge.bridge-nf-call-ip6tables=1```  
+    4. Применяем настройки sysctl:
         - ```sysctl -p /etc/sysctl.conf``` 
 3. Сбрасываем настройки текущего куба, если такой был ранее установлен: 
    -  ```kubeadm reset```
@@ -86,16 +89,10 @@
 3. Копируем файл admin.conf с мастер ноды на рабочую ноду в каталог **~/.kube/config**:
    ```sudo scp /etc/kubernetes/admin.conf administrator@192.168.10.215:~/.kube/config```
 4. Инсталируем среду запуска контейнеров(CRI):
-   ```sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin```
-   Если не находит репозиторий с **containerd.io**, то:
-    - Добавляем ключ репозитория docker:
-    ```curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker-archive-keyring.gpg```
-    - Прописываем репозиторий docker:
-    ```echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list```
-5. Активируем сервис kubelet:
-   ```systemctl enable kubelet```
-6. Проверяем что в файле **/etc/containerd/config.toml**:
-   ```enabled_plugins=["cri"]```
+   ```sudo apt-get install -y containerd```
+   Более детально описано ниже.   
+5. До запуска kubeadm активируем сервис kubelet:
+   ```systemctl enable --now kubelet``` 
 7. Запускаем команду присоединения к мастер ноде на рабочей ноде(обязательно под root из под пользователя):
    ```sudo kubeadm join <ip-мастер ноды>:6443 --token kznh8g.7vjbsqmb6zpzgs57 --discovery-token-ca-cert-hash sha256:9b9e6273e639dae468f0e49d225e735b63be45bd5f5bc393024bd56f0597c36c```
 
@@ -112,6 +109,15 @@
       ```kubectl describe node```
 В итоге создаются файлы в папке */etc/CNI* и появляется сеть в описании control plane ноды:
 <img src='images/calicoinstall.png'/>
+
+### Устанавливаем calicoctl(клиента calico)
+
+1. В текущую папку скачиваем библиотеку calicoctl:
+```curl -L https://github.com/projectcalico/calico/releases/download/v3.28.0/calicoctl-linux-amd64 -o calicoctl```
+2. Устанавливаем права на запуск:
+```chmod +x calicoctl```
+3. Копируем в папку **/usr/local/bin/**
+```sudo cp calicoctl /usr/local/bin/calicoctl```
     
 ### Актуализируем репозиторий kubernetes 
 
@@ -127,14 +133,40 @@
 
 ### Установка CRI
 
-Если не запускается kubelet на control plane с ошибкой ```validate service connection: validate CRI v1 runtime API for endpoint```, то может потребоваться переустановка среды CRI. Возникает если установлены сразу 2 и более CRI. Основной причиной является то,  containerd может быть не совместим с установленными неофициальными версиями Docker Engine(docker.io, docker-compose, docker-podman) Кроме того новая версия containerd может быть несовместима с предыдущими версиями containerd и runc, поэтому выполняем следующие операции:
-- удаляем ранее установленные пакеты Docker(*apt-get remove $pkg*): 
-    ```for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done``` 
+Если не запускается kubelet на control plane с ошибкой ```validate service connection: validate CRI v1 runtime API for endpoint```, то может потребоваться переустановка среды CRI. Возникает если установлены сразу 2 и более CRI. Основной причиной является то,  containerd может быть не совместим с установленными неофициальными версиями Docker Engine(docker.io, docker-compose, docker-podman) Кроме того новая версия containerd может быть несовместима с предыдущими версиями containerd и runc, поэтому  удаляем предыдущие версии  среды CRI: 
+    ```for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done```
+
+1. Установка containerd (официальная версия установки среды CRI) 
 - Устанавливаем containerd командой(внутрь containerd входит runc):
-    ```sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin```
-- После установки включаем плагин CRI в containerd. Заходим и заменяем ```disabled_plugins``` на ```enabled_plugins=["cri"]```:
+    ```sudo  apt-get install -y containerd```
+- Генерируем файл конфигурации config.toml:
+    ```mkdir -p /etc/containerd/ & containerd config default | sudo tee /etc/containerd/config.toml```
+- Скачиваем runc в папку **/usr/local/sbin/runc**:
+  ```
+     mkdir -p /usr/local/sbin/runc 
+     curl https://github.com/opencontainers/runc/releases/download/v1.1.1/runc.amd64 -o /usr/local/sbin/runc/runc.amd64 
+     chmod 755 /usr/local/sbin/runc/runc.amd64
+  ``` 
+- Ставим containerd в автозагрузку:
+  ```systemctl enable --now containerd```
+- Заменаяем в файле **/etc/containerd/config.toml** значение **SystemdCgroup**:
+  ```SystemdCgroup = true```
+- После этого перезапускаем containerd : 
+    ```systemctl restart containerd```
+
+2. Установка containerd.io
+- Устанавливаем обязательные пакеты:
+  ```sudo apt install -y ca-certificates curl gnupg lsb-release``` 
+- Устанавливаем репозиторий для **containerd.io**:
+    - Добавляем ключ репозитория docker:
+    ```curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker-archive-keyring.gpg```
+    - Прописываем репозиторий docker:
+    ```echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list```
+- Устанавливаем **containerd.io**:
+   ```sudo apt install -y containerd.io```
+- Заменаяем в файле config.toml значение **SystemdCgroup**:
+  ```SystemdCgroup = true``` 
+- После установки включаем плагин CRI. Заходим и заменяем ```disabled_plugins``` на ```enabled_plugins=["cri"]```:
     ```nano /etc/containerd/config.toml```.
-- После этого перезапускаем containerd и kubelet: 
-    ```systemctl restart containerd & systemctl restart kubelet```
-- Проверяем что kubelet запустился командой:
-    ```systemctl status kubelet```
+- После этого перезапускаем containerd : 
+    ```systemctl restart containerd```
