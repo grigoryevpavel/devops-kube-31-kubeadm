@@ -106,7 +106,7 @@ Calico сеть состоит из следующих компонентов: F
       ```kubectl apply -f calico.yaml```  
 - проверяем что сеть появилась командой:
       ```kubectl describe node```
-В итоге создаются файлы в папке */etc/CNI* и появляется сеть в описании control plane ноды:
+В итоге создаются файлы в папке */etc/CNI* и  нода переходит в состояние **Ready**:
 <img src='images/calicoinstall.png'/>
 
 ### Устанавливаем calicoctl(клиента calico)
